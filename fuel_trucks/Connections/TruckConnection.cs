@@ -36,8 +36,12 @@ namespace fuel_trucks.Connections
 
                 var fuelingEvents = new DispatchConnection(_dbConfig).GetTodaysPendingFuelingEvents(regionId);
 
-                // Calls an external mapping API using HttpClient, gets travel times to 
-                RouteTruck(fuelingEvents, currentStop);
+                /* Calls an external mapping API using HttpClient, gets travel times to each stop in region from current location, then runs through 
+                 routing process as described in information doc to determine next stop for truck and then returns that stop.
+                */
+                var stopId = RouteTruck(fuelingEvents, currentStop);
+
+                UpdateRoute(connection, truckId, stopId);
                 
                 var truckOrdersQueryString = @"Select [Stop].Location
                                                From Truck
@@ -80,7 +84,20 @@ namespace fuel_trucks.Connections
             }
         }
 
-        public void RouteTruck(IEnumerable<FuelingEvent> fuelingEvents, int currentStop)
+        public int UpdateRoute(SqlConnection connection, int truckId, int stopId)
+        {
+            var routeUpdateQueryString = @"Update Truck
+                                                Set StopId = @StopId
+                                                Where Truck.Id = @TruckId
+                                                
+                                                Update [Stop]
+                                                Set EnRouteStatus = 1
+                                                Where [Stop].Id = @StopId";
+            var updatedRoute = connection.QueryFirst<int>(routeUpdateQueryString, new { truckId, stopId });
+            return updatedRoute;
+        }
+
+        public int RouteTruck(IEnumerable<FuelingEvent> fuelingEvents, int currentStop)
         {
 
         }
